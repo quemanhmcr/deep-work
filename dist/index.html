@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deep Work Neural Reset</title>
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://deep-reset.pages.dev/">
+    <meta property="og:title" content="Deep Reset | Neural Audio Focus">
+    <meta property="og:description"
+        content="Kích hoạt trạng thái tập trung sâu với âm thanh Brown Noise & Binaural Beats. Được thiết kế để thư giãn mắt và não bộ.">
+    <meta property="og:image" content="https://deep-reset.pages.dev/og-image.png">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://deep-reset.pages.dev/">
+    <meta property="twitter:title" content="Deep Reset | Neural Audio Focus">
+    <meta property="twitter:description"
+        content="Kích hoạt trạng thái tập trung sâu với âm thanh Brown Noise & Binaural Beats. Được thiết kế để thư giãn mắt và não bộ.">
+    <meta property="twitter:image" content="https://deep-reset.pages.dev/og-image.png">
+    <style>
+        :root {
+            /* MÀU ĐÃ ĐƯỢC TINH CHỈNH ĐỂ KHÔNG GÂY KÍCH THÍCH VÕNG MẠC */
+            --bg-color: #080a0b;
+            /* Đen pha chút xanh rêu đậm, đỡ gắt hơn đen tuyền */
+            --accent: #38b2ac;
+            /* Teal trầm, không phải Neon chói lọi */
+            --text-color: rgba(226, 232, 240, 0.8);
+        }
+
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Lớp Blur này mô phỏng trạng thái 'Panoramic Vision' */
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            /* Tăng độ mờ để xóa bỏ chi tiết sắc cạnh - Kẻ thù của thư giãn */
+            filter: blur(60px) brightness(0.9);
+        }
+
+        #ui-layer {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            pointer-events: none;
+            /* Blend mode giúp chữ không bị 'tách' khỏi nền, đỡ mỏi mắt */
+            mix-blend-mode: screen;
+        }
+
+        .screen {
+            transition: opacity 1.5s ease;
+        }
+
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        h1 {
+            font-weight: 200;
+            letter-spacing: 8px;
+            text-transform: uppercase;
+            font-size: 1.2rem;
+            color: var(--accent);
+            opacity: 0.8;
+        }
+
+        #instruction-text {
+            font-size: 1.5rem;
+            font-weight: 300;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            min-height: 2rem;
+            transition: opacity 2s ease;
+        }
+
+        .btn {
+            pointer-events: auto;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-color);
+            padding: 20px 60px;
+            font-size: 0.9rem;
+            border-radius: 100px;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        .btn:hover {
+            border-color: var(--accent);
+            background: rgba(56, 178, 172, 0.1);
+        }
+
+        /* PROGRESS CIRCLE - Dùng Glow thay vì nét vẽ cứng */
+        .progress-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            height: 300px;
+            pointer-events: none;
+            /* Bóng mờ mềm mại */
+            filter: drop-shadow(0 0 20px rgba(56, 178, 172, 0.4));
+        }
+
+        svg {
+            transform: rotate(-90deg);
+            width: 100%;
+            height: 100%;
+        }
+
+        circle {
+            fill: none;
+            stroke-linecap: round;
+        }
+
+        .bg-circle {
+            stroke: rgba(255, 255, 255, 0.02);
+            stroke-width: 2;
+        }
+
+        .progress-circle {
+            stroke: var(--accent);
+            stroke-width: 4;
+            stroke-dasharray: 880;
+            stroke-dashoffset: 880;
+            opacity: 0.6;
+            /* Làm mờ chính nét vẽ để mắt không cố lấy nét */
+            filter: blur(2px);
+        }
+
+        .cursor-hidden {
+            cursor: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <canvas id="canvas"></canvas>
+
+    <div class="progress-container hidden" id="progress-ui">
+        <svg viewBox="0 0 300 300">
+            <circle class="bg-circle" cx="150" cy="150" r="140"></circle>
+            <circle id="progress-bar" class="progress-circle" cx="150" cy="150" r="140"></circle>
+        </svg>
+    </div>
+
+    <div id="ui-layer">
+        <div id="start-screen" class="screen">
+            <h1>Neural Reset</h1>
+            <p style="font-size: 0.9rem; opacity: 0.6; margin-bottom: 2rem; letter-spacing: 1px;">
+                Đeo tai nghe &bull; Thư giãn mắt
+            </p>
+            <button class="btn" onclick="initSession()">Kích hoạt</button>
+        </div>
+
+        <div id="session-screen" class="screen hidden">
+            <div id="instruction-text">Chuẩn bị</div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const progressBar = document.getElementById('progress-bar');
+        const instructionLabel = document.getElementById('instruction-text');
+
+        let width, height;
+        let particles = [];
+        let isRunning = false;
+        let startTime = 0;
+        let cyclesCompleted = 0;
+        let audioCtx, masterGain, osc1, osc2, brownNoiseNode;
+
+        // Rhythm: 4-7-8 (Dr. Andrew Weil) - Tốt hơn 4-2-6 cho việc an thần cực sâu
+        // Hoặc giữ 4-2-6. Ở đây tôi dùng 4-2-6 vì nó cân bằng giữa tỉnh táo và thư giãn.
+        const INHALE = 4000;
+        const HOLD = 2000;
+        const EXHALE = 6000;
+        const TOTAL_CYCLE = INHALE + HOLD + EXHALE;
+
+        // --- NEURO AUDIO ENGINE (Brown Noise + Binaural) ---
+        function initAudio() {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+
+            masterGain = audioCtx.createGain();
+            masterGain.gain.setValueAtTime(0, audioCtx.currentTime);
+            masterGain.connect(audioCtx.destination);
+
+            // --- TẠO BỘ TRỘN RIÊNG ---
+
+            // 1. Gain riêng cho Binaural Beats (GIẢM MẠNH)
+            // Giảm xuống mức thấp để nó chìm vào nền, không kêu "OOOO" đáng sợ nữa
+            const binauralGain = audioCtx.createGain();
+            binauralGain.gain.value = 0.03; // Mức rất nhỏ (Subtle)
+            binauralGain.connect(masterGain);
+
+            // Osc 1 (Left - 110Hz)
+            osc1 = audioCtx.createOscillator();
+            osc1.type = 'sine';
+            osc1.frequency.value = 110;
+            const panner1 = audioCtx.createStereoPanner();
+            panner1.pan.value = -0.5;
+            osc1.connect(panner1).connect(binauralGain); // Đi qua bộ giảm âm
+
+            // Osc 2 (Right - 114Hz)
+            osc2 = audioCtx.createOscillator();
+            osc2.type = 'sine';
+            osc2.frequency.value = 114;
+            const panner2 = audioCtx.createStereoPanner();
+            panner2.pan.value = 0.5;
+            osc2.connect(panner2).connect(binauralGain); // Đi qua bộ giảm âm
+
+            // 2. BROWN NOISE (Âm thanh chủ đạo - "Cái chăn ấm")
+            const bufferSize = 2 * audioCtx.sampleRate;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            let lastOut = 0;
+            for (let i = 0; i < bufferSize; i++) {
+                const white = Math.random() * 2 - 1;
+                data[i] = (lastOut + (0.02 * white)) / 1.02;
+                lastOut = data[i];
+                data[i] *= 3.5;
+            }
+            brownNoiseNode = audioCtx.createBufferSource();
+            brownNoiseNode.buffer = buffer;
+            brownNoiseNode.loop = true;
+
+            const brownGain = audioCtx.createGain();
+            // Tăng nhẹ tỷ lệ Brown Noise so với Binaural để lấp tiếng kêu
+            brownGain.gain.value = 0.06;
+            brownNoiseNode.connect(brownGain).connect(masterGain);
+
+            osc1.start();
+            osc2.start();
+            brownNoiseNode.start();
+
+            // Fade in nhẹ nhàng trong 4 giây để không gây giật mình
+            masterGain.gain.setTargetAtTime(1, audioCtx.currentTime, 4);
+        }
+
+        function updateAudio(vol) {
+            if (masterGain && audioCtx) {
+                // Volume dao động nhẹ theo nhịp thở để tạo cảm giác "Hypnotic"
+                const baseVol = 0.8;
+                const breathModulation = vol * 0.2;
+                masterGain.gain.setTargetAtTime(baseVol + breathModulation, audioCtx.currentTime, 0.1);
+            }
+        }
+
+        // --- VISUAL ENGINE (Organic Flow) ---
+        class Particle {
+            constructor() {
+                this.reset();
+                // Phân bố đều hơn thay vì random hoàn toàn
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+            }
+
+            reset() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.baseSize = Math.random() * 60 + 40; // Hạt to hơn để blur đẹp hơn
+                // Màu sắc: Teal và Amber nhạt (Cool & Warm balance)
+                this.color = Math.random() > 0.5 ? '#38b2ac' : '#d69e2e';
+                // Chuyển động cực chậm
+                this.vx = (Math.random() - 0.5) * 0.2;
+                this.vy = (Math.random() - 0.5) * 0.2;
+            }
+
+            draw(ctx, scale, opacityMod) {
+                // Di chuyển chậm
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Wrap biên
+                if (this.x < -100) this.x = width + 100;
+                if (this.x > width + 100) this.x = -100;
+                if (this.y < -100) this.y = height + 100;
+                if (this.y > height + 100) this.y = -100;
+
+                ctx.beginPath();
+                // Hạt "thở" theo scale tổng
+                ctx.arc(this.x, this.y, this.baseSize * scale, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = 0.15 * opacityMod; // Rất mờ
+                ctx.fill();
+            }
+        }
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Chỉ cần 40 hạt lớn là đủ, nhiều quá gây rối mắt (Visual Clutter)
+        for (let i = 0; i < 40; i++) particles.push(new Particle());
+
+        function initSession() {
+            if (isRunning) return;
+            initAudio();
+            isRunning = true;
+            startTime = Date.now();
+
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('session-screen').classList.remove('hidden');
+            document.getElementById('progress-ui').classList.remove('hidden');
+            document.body.classList.add('cursor-hidden');
+
+            requestAnimationFrame(loop);
+        }
+
+        function loop() {
+            if (!isRunning) return;
+
+            // Clear màn hình với độ trong suốt để tạo hiệu ứng vệt mờ (Dreamy effect)
+            ctx.fillStyle = 'rgba(8, 10, 11, 0.15)';
+            ctx.fillRect(0, 0, width, height);
+
+            const now = Date.now();
+            const elapsed = now - startTime;
+            const cycleTime = elapsed % TOTAL_CYCLE;
+
+            // Logic ẩn chữ sau 2 vòng để não nghỉ
+            const currentCyclesCheck = Math.floor(elapsed / TOTAL_CYCLE);
+            if (currentCyclesCheck !== cyclesCompleted) {
+                cyclesCompleted = currentCyclesCheck;
+                if (cyclesCompleted >= 2) {
+                    instructionLabel.style.opacity = 0; // Tắt hẳn chữ
+                }
+            }
+
+            // Tính toán trạng thái sinh học
+            let progress = 0;
+            let visualScale = 1;
+            let text = "";
+            let opacityMod = 1;
+
+            if (cycleTime < INHALE) {
+                // Hít vào: Năng lượng đi lên, hình nở ra
+                progress = cycleTime / INHALE;
+                text = "Hít vào";
+                // Cubic Ease Out
+                visualScale = 1 + (1 - Math.pow(1 - progress, 3)) * 0.4;
+                opacityMod = 0.8 + (progress * 0.2);
+            } else if (cycleTime < INHALE + HOLD) {
+                // Giữ: Tĩnh lặng
+                progress = (cycleTime - INHALE) / HOLD;
+                text = "Giữ lại";
+                visualScale = 1.4 + Math.sin(now / 200) * 0.02; // Rung nhẹ tim thai
+                opacityMod = 1;
+            } else {
+                // Thở ra: Thả lỏng, hình thu lại chậm
+                progress = (cycleTime - INHALE - HOLD) / EXHALE;
+                text = "Thở ra chậm";
+                // Smooth Step
+                visualScale = 1.4 - (progress * 0.4);
+                opacityMod = 1 - (progress * 0.3);
+            }
+
+            // Update UI
+            if (cyclesCompleted < 2) {
+                instructionLabel.innerText = text;
+                // Chữ cũng "thở" nhẹ
+                instructionLabel.style.transform = `scale(${1 + (visualScale - 1) * 0.1})`;
+            }
+
+            updateAudio(visualScale - 0.5); // Audio volume sync với hơi thở
+
+            // Vẽ vòng tròn
+            const circleOffset = 880 - ((cycleTime / TOTAL_CYCLE) * 880);
+            progressBar.style.strokeDashoffset = circleOffset;
+
+            // Vẽ các hạt nền
+            particles.forEach(p => p.draw(ctx, visualScale, opacityMod));
+
+            requestAnimationFrame(loop);
+        }
+
+        // Tự động kết thúc sau 3 phút (Thời gian vàng cho Neural Reset)
+        // Quá lâu sẽ gây buồn ngủ, quá ngắn chưa đủ ngấm
+        setTimeout(() => {
+            if (isRunning) {
+                isRunning = false;
+                if (audioCtx) audioCtx.close();
+                document.body.classList.remove('cursor-hidden');
+                document.getElementById('session-screen').innerHTML = "<h1 style='opacity:1; transition: opacity 1s'>GO DEEP NOW</h1>";
+                document.getElementById('progress-ui').classList.add('hidden');
+            }
+        }, 180000); // 3 phút
+
+    </script>
+</body>
+
+</html>

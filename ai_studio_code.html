@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deep Work Primer - Neural Reset Pro</title>
+    <style>
+        :root {
+            --bg-color: #050505;
+            --accent: #00ADB5;
+            --accent-bright: #00FFF5;
+            --text-dim: rgba(255, 255, 255, 0.4);
+            --text-bright: rgba(255, 255, 255, 0.9);
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            color: #fff;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* High Blur for Soft Focus (Neural Relaxation) */
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            filter: blur(40px) contrast(1.1);
+            transition: opacity 2s ease;
+        }
+
+        #ui-layer {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            pointer-events: none;
+            max-width: 600px;
+        }
+
+        .screen {
+            transition: opacity 1s ease, transform 1s ease;
+        }
+
+        .hidden {
+            opacity: 0 !important;
+            transform: translateY(15px);
+            pointer-events: none;
+        }
+
+        h1 {
+            font-weight: 200;
+            letter-spacing: 10px;
+            text-transform: uppercase;
+            font-size: 1.4rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-bright);
+        }
+
+        p {
+            color: var(--text-dim);
+            line-height: 1.8;
+            font-size: 0.9rem;
+            margin-bottom: 2.5rem;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+
+        #instruction-text {
+            font-size: 2rem;
+            font-weight: 200;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            color: var(--text-bright);
+            text-shadow: 0 0 30px rgba(255, 255, 255, 0.1);
+            min-height: 3rem;
+        }
+
+        #cycle-info {
+            margin-top: 2rem;
+            font-size: 0.75rem;
+            letter-spacing: 3px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+
+        .btn {
+            pointer-events: auto;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: var(--text-bright);
+            padding: 18px 50px;
+            font-size: 0.8rem;
+            border-radius: 100px;
+            cursor: pointer;
+            transition: all 0.5s cubic-bezier(0.2, 1, 0.3, 1);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn:hover {
+            border-color: var(--accent);
+            background: rgba(255, 255, 255, 0.05);
+            box-shadow: 0 0 40px rgba(0, 173, 181, 0.15);
+            transform: scale(1.02);
+        }
+
+        /* Progress Circle Logic */
+        .progress-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 320px;
+            height: 320px;
+            pointer-events: none;
+            opacity: 0.25;
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+
+        circle {
+            fill: none;
+            stroke-width: 1.5;
+            stroke-linecap: round;
+        }
+
+        .bg-circle { stroke: rgba(255, 255, 255, 0.05); }
+        .progress-circle {
+            stroke: var(--accent);
+            stroke-dasharray: 880; /* ~ 2 * PI * 140 */
+            stroke-dashoffset: 880;
+            transition: stroke-dashoffset 0.1s linear;
+        }
+
+        .cursor-hidden { cursor: none; }
+    </style>
+</head>
+<body>
+
+    <canvas id="canvas"></canvas>
+
+    <div class="progress-container hidden" id="progress-ui">
+        <svg viewBox="0 0 300 300">
+            <circle class="bg-circle" cx="150" cy="150" r="140"></circle>
+            <circle id="progress-bar" class="progress-circle" cx="150" cy="150" r="140"></circle>
+        </svg>
+    </div>
+
+    <div id="ui-layer">
+        <!-- Start Screen -->
+        <div id="start-screen" class="screen">
+            <h1>Neural Reset</h1>
+            <p>
+                Nhịp thở 4-2-6 &bull; Thư giãn cơ mắt<br>
+                Hãy để tầm nhìn mở rộng sang hai bên<br>
+                Không tập trung, chỉ cảm nhận dòng chảy
+            </p>
+            <button class="btn" onclick="initSession()">Bắt đầu Focus</button>
+        </div>
+
+        <!-- Session Screen -->
+        <div id="session-screen" class="screen hidden">
+            <div id="instruction-text">Chuẩn bị...</div>
+            <div id="cycle-info">Vòng Reset: <span id="cycle-count">0</span></div>
+            <button class="btn" style="margin-top: 60px; font-size: 0.65rem; padding: 12px 24px;" onclick="stopSession()">Kết thúc</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const progressBar = document.getElementById('progress-bar');
+        const instructionLabel = document.getElementById('instruction-text');
+        const cycleLabel = document.getElementById('cycle-count');
+        
+        let width, height;
+        let particles = [];
+        let isRunning = false;
+        let startTime = 0;
+        let cycles = 0;
+        let audioCtx, oscillator, gainNode;
+
+        // Configuration: 4-2-6 Rhythm
+        const INHALE = 4000;
+        const HOLD = 2000;
+        const EXHALE = 6000;
+        const TOTAL_CYCLE = INHALE + HOLD + EXHALE;
+
+        const colors = ['#00ADB5', '#222831', '#00FFF5', '#050505', '#111'];
+
+        // --- Audio Engine ---
+        function initAudio() {
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                oscillator = audioCtx.createOscillator();
+                gainNode = audioCtx.createGain();
+                
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(110, audioCtx.currentTime); // Low A hum
+                
+                gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.start();
+            } catch(e) { console.error("Audio failed", e); }
+        }
+
+        function updateAudio(vol) {
+            if (gainNode && audioCtx) {
+                // Target volume with a bit of smoothing for the "swell" effect
+                gainNode.gain.setTargetAtTime(vol * 0.12, audioCtx.currentTime, 0.1);
+            }
+        }
+
+        // --- Visual Engine ---
+        class Particle {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.baseSize = Math.random() * 40 + 25;
+                this.size = this.baseSize;
+                this.color = colors[Math.floor(Math.random() * colors.length)];
+                this.vx = (Math.random() - 0.5) * 0.35; // Slower, calmer movement
+                this.vy = (Math.random() - 0.5) * 0.35;
+                this.alpha = 0.1 + Math.random() * 0.3;
+            }
+
+            update(progress, stage) {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                if (stage === 'inhale') {
+                    // Smooth Sine Ease Out for Expansion
+                    let ease = Math.sin(progress * Math.PI / 2);
+                    this.size = this.baseSize * (1 + ease * 0.9);
+                    this.alpha = 0.2 + ease * 0.4;
+                } else if (stage === 'exhale') {
+                    // Contraction
+                    this.size = this.baseSize * (1.9 - progress * 0.9);
+                    this.alpha = 0.6 - progress * 0.4;
+                } else {
+                    // Hold: Pulsing vibration
+                    this.size = this.baseSize * 1.9 + Math.sin(Date.now() / 150) * 2;
+                }
+
+                // Boundary Wrapping
+                if (this.x < -150) this.x = width + 150;
+                if (this.x > width + 150) this.x = -150;
+                if (this.y < -150) this.y = height + 150;
+                if (this.y > height + 150) this.y = -150;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = this.alpha;
+                ctx.fill();
+            }
+        }
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        for (let i = 0; i < 75; i++) particles.push(new Particle());
+
+        // --- Logic Control ---
+        function initSession() {
+            if (isRunning) return;
+            initAudio();
+            isRunning = true;
+            startTime = Date.now();
+            
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('session-screen').classList.remove('hidden');
+            document.getElementById('progress-ui').classList.remove('hidden');
+            document.body.classList.add('cursor-hidden');
+            
+            requestAnimationFrame(loop);
+        }
+
+        function stopSession() {
+            isRunning = false;
+            if (audioCtx) audioCtx.close();
+            document.body.classList.remove('cursor-hidden');
+            location.reload(); 
+        }
+
+        function loop() {
+            if (!isRunning) return;
+
+            // Long trail effect for "dreamy" look
+            ctx.fillStyle = 'rgba(5, 5, 5, 0.12)';
+            ctx.fillRect(0, 0, width, height);
+
+            const now = Date.now();
+            const elapsed = now - startTime;
+            const cycleTime = elapsed % TOTAL_CYCLE;
+            
+            const currentCycles = Math.floor(elapsed / TOTAL_CYCLE);
+            if (currentCycles !== cycles) {
+                cycles = currentCycles;
+                cycleLabel.innerText = cycles;
+            }
+
+            let stage = '';
+            let progress = 0;
+            let text = '';
+            let audioVol = 0;
+
+            if (cycleTime < INHALE) {
+                stage = 'inhale';
+                progress = cycleTime / INHALE;
+                text = "Hít vào";
+                audioVol = progress;
+            } else if (cycleTime < INHALE + HOLD) {
+                stage = 'hold';
+                progress = (cycleTime - INHALE) / HOLD;
+                text = "Giữ lại";
+                audioVol = 1.0;
+            } else {
+                stage = 'exhale';
+                progress = (cycleTime - INHALE - HOLD) / EXHALE;
+                text = "Thở ra chậm";
+                audioVol = 1.0 - progress;
+            }
+
+            // UI Updates
+            instructionLabel.innerText = text;
+            updateAudio(audioVol);
+            
+            // 880 is dasharray for 140 radius
+            const circleOffset = 880 - ((cycleTime / TOTAL_CYCLE) * 880);
+            progressBar.style.strokeDashoffset = circleOffset;
+
+            particles.forEach(p => {
+                p.update(progress, stage);
+                p.draw();
+            });
+
+            requestAnimationFrame(loop);
+        }
+
+        // Zen Mode: Hide cursor when inactive
+        let mouseTimer;
+        window.addEventListener('mousemove', () => {
+            if (!isRunning) return;
+            document.body.classList.remove('cursor-hidden');
+            clearTimeout(mouseTimer);
+            mouseTimer = setTimeout(() => {
+                if(isRunning) document.body.classList.add('cursor-hidden');
+            }, 2500);
+        });
+
+    </script>
+</body>
+</html>
