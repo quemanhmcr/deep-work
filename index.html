@@ -171,7 +171,7 @@
         <div id="start-screen" class="screen">
             <h1>Neural Reset</h1>
             <p style="font-size: 0.9rem; opacity: 0.6; margin-bottom: 2rem; letter-spacing: 1px;">
-                Đeo tai nghe &bull; Thư giãn mắt
+                Đeo tai nghe &bull; Thư giãn mắt &bull; 3 Phút
             </p>
             <button class="btn" onclick="initSession()">Kích hoạt</button>
         </div>
@@ -334,6 +334,40 @@
 
             requestAnimationFrame(loop);
         }
+
+        function stopSession() {
+            if (!isRunning) return;
+            isRunning = false;
+            if (audioCtx) {
+                // Fade out audio before closing
+                if (masterGain) {
+                    masterGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.5);
+                }
+                setTimeout(() => {
+                    if (audioCtx) {
+                        audioCtx.close();
+                        audioCtx = null;
+                    }
+                }, 600);
+            }
+
+            document.getElementById('start-screen').classList.remove('hidden');
+            document.getElementById('session-screen').classList.add('hidden');
+            document.getElementById('progress-ui').classList.add('hidden');
+            document.body.classList.remove('cursor-hidden');
+
+            // Reset instruction label for next session
+            instructionLabel.style.opacity = 1;
+            instructionLabel.innerText = "Chuẩn bị";
+
+            // Clear any lingering requestAnimationFrame if possible, though isRunning check handles it
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && isRunning) {
+                stopSession();
+            }
+        });
 
         function loop() {
             if (!isRunning) return;
